@@ -1,0 +1,21 @@
+* Structure
+** parsing a command line
+*** main(), argc, argv
+*** translation from bash command line to argv
+**** splitting a C string
+*** sending args with spaces in them
+*** sending args with non-printable ascii values
+*** issue with null byte
+** spawning a process
+*** environment variables
+*** locating the binary using PATH
+*** fork-exec
+**** fork
+**** execve
+**** vfork
+**** posix_spawn
+** waiting for a process to terminate
+** handling signals
+** simple job control: ^Z, bg, fg
+** pipes and redirection
+
