@@ -18,4 +18,4 @@
 ** handling signals
 ** simple job control: ^Z, bg, fg
 ** pipes and redirection
-
+** error handling in C
