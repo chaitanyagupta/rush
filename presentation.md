@@ -5,10 +5,12 @@
 ## Topics
 * Parsing a command line
 * Spawning a process
-* Handling signals
+* Files and redirection
+
+## Future topics
+* Signal handling
 * Job control
-* Files
-* Pipes and redirection
+* Pipes
 
 ---
 
@@ -585,6 +587,104 @@ argv[2] = bar
         }
     } while (!should_exit);
 ```
+
+---
+
+## Issues with fork-exec 
+
+* fork-exec can be horrendously inefficient.
+
+* Naive implementations requires atleast the same amount of memory as the calling process to be available.
+
+* Efficient implementations of `fork()` (e.g. on Linux) use copy-on-write semantics.
+
+* `vfork()`: suspends the parent, borrows its memory until `execve()` or `_exit()` is called
+
+* `posix_spawn()`: Alternative to fork-exec, usually for embedded environments. It might delegate to fork-exec if its available and implemented efficiently.
+
+---
+
+## Waiting for a child process to terminate
+
+Use the `wait()` system call to wait for a child process to terminate.
+
+```c
+    do {
+        prompt_and_read(line, sizeof(line));
+        should_exit = strcmp(line, "exit") == 0;
+        if (!should_exit) {
+            int argc = parse_line(line, argv, ARRAY_SIZE(argv));
+            char binpath[MAX_PATH_LEN];
+            if (search_path(argv[0], binpath, sizeof(binpath))) {
+                pid_t pid = fork();
+*               if (pid > 0) {
+*                   wait(NULL);
+                } else if (pid == 0) {
+                    if (execve(binpath, argv, environ) == -1) {
+                        perror("rush");
+                    }
+                } else { ... }
+            } else { ... }
+        }
+    } while (!should_exit);
+```
+
+---
+
+# Files and redirection
+
+---
+
+## Files in POSIX
+
+* C Standard library provides `FILE *`, but its not used in POSIX
+* POSIX uses file descriptors, which have the type `int`
+* All the information associated with a file descriptor is stored in kernel tables
+* C files are built on top of file descriptors
+* Usage of files descriptors is simlar to C files
+
+---
+
+## File descriptors
+
+Open
+
+```c
+int fd = open("/path/to/file", O_RDONLY);
+```
+
+Read
+
+```c
+char read_buf[MAXLEN];
+ssize_t bytes_read = read(fd, read_buf, sizeof(read_buf));
+```
+
+Write
+
+```c
+ssize_t bytes_written = write(fd, write_buf, available_len);
+```
+
+Close
+
+```c
+close(fd);
+```
+
+---
+
+# Standard file descriptors
+
+* `STDIN_FILENO` (0)
+* `STDOUT_FILENO` (1)
+* `STDERR_FILENO` (2)
+
+---
+
+# File descriptor redirection
+
+Any file descriptor can be redirected using the `dup2` call.
 
 ---
 

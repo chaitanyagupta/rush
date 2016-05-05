@@ -58,12 +58,14 @@ int main() {
             char binpath[MAX_PATH_LEN];
             if (search_path(argv[0], binpath, sizeof(binpath))) {
                 pid_t pid = fork();
-                if (pid == 0) {
+                if (pid > 0) {
+                    wait(NULL);
+                } else if (pid == 0) {
                     if (execve(binpath, argv, environ) == -1) {
                         perror("rush");
                     }
                 } else {
-                    // do something else
+                    perror("rush");
                 }
             } else {
                 fprintf(stderr, "Couldn't locate %s\n", argv[0]);
