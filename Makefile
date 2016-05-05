@@ -1,6 +1,6 @@
 dir_guard = @mkdir -p $(@D)
 
-bin_names = rush dumb execve1 fork1 printargs exec-fool printenv search_path
+bin_names = rush dumb execve1 fork1 printargs exec-fool printenv search_path forkme execme execprintargs
 bins := $(patsubst %,bin/%,$(bin_names))
 
 all: $(bins) presentation

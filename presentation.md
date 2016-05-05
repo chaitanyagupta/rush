@@ -241,13 +241,13 @@ argv[3] = NULL
 
 int main() {
     char line[MAX_LINE_LENGTH];
-    char *argv[MAX_ARGC];
+*   char *argv[MAX_ARGC];
     int should_exit;
     do {
         prompt_and_read(line, sizeof(line));
         should_exit = strcmp(line, "exit") == 0;
         if (!should_exit) {
-            int argc = parse_line(line, argv, ARRAY_SIZE(argv));
+*           int argc = parse_line(line, argv, ARRAY_SIZE(argv));
             // do further processing
         }
     } while (!should_exit);
@@ -340,14 +340,14 @@ int unsetenv(const char *name);
 ```c
 int search_path(char *name, char *path, size_t maxlen) {
     char pathdirs[MAX_PATH_VAR_LEN];
-    strlcpy(pathdirs, getenv("PATH"), sizeof(pathdirs));
+*   strlcpy(pathdirs, getenv("PATH"), sizeof(pathdirs));
     char *dir, *head = pathdirs;
     int success = 0;
-    while ((dir = strsep(&head, ":")) != NULL) {
+*   while ((dir = strsep(&head, ":")) != NULL) {
         strlcpy(path, dir, maxlen);
         strlcat(path, "/", maxlen);
         strlcat(path, name, maxlen);
-        if (access(path, X_OK) == 0) {
+*       if (access(path, X_OK) == 0) {
             return 1;
         }
     }
@@ -365,10 +365,10 @@ do {
     should_exit = strcmp(line, "exit") == 0;
     if (!should_exit) {
         int argc = parse_line(line, argv, ARRAY_SIZE(argv));
-        char binpath[MAX_PATH_LEN];
-        if (search_path(argv[0], binpath, sizeof(binpath))) {
-            // do further processing
-        } else {
+*       char binpath[MAX_PATH_LEN];
+*       if (search_path(argv[0], binpath, sizeof(binpath))) {
+*           // do further processing
+*       } else {
             fprintf(stderr, "Couldn't locate %s\n", argv[0]);
         }
     }
@@ -378,6 +378,213 @@ do {
 ???
 
 One more thing that a UNIX shell does is that, if the program name contains a slash, then PATH is not searched.
+
+---
+
+## fork-exec
+
+Spawning a process is a two step process:
+
+1. `fork()` creates a new process (child process) that is a near identical copy of the calling process (parent process).
+
+2. The `exec` family of functions execute a program. These functions do not return on success, instead the text, data, bss and stack of the calling process are overwritten by that of the program loaded.
+
+---
+
+## fork-exec
+
+```
+
+     +-----------------+
+     |                 |
+     | $ p1 foo bar    |
+     | pid: 1234       |
+     | ppid: 1         |
+     |                 |
+     +-----------------+
+
+fork()
+
+     +-----------------+        +-----------------+
+     |                 |        |                 |
+     | $ p1 foo bar    |        | $ p1 foo bar    |
+     | pid: 1234       |        | pid: 1235       |
+     | ppid: 1         |        | ppid: 1234      |
+     |                 |        |                 |
+     +-----------------+        +-----------------+
+
+execve("p2", "quux") [Actual call differs]
+
+     +-----------------+        +-----------------+
+     |                 |        |                 |
+     | $ p1 foo bar    |        | $ p2 quux       |
+     | pid: 1234       |        | pid: 1235       |
+     | ppid: 1         |        | ppid: 1234      |
+     |                 |        |                 |
+     +-----------------+        +-----------------+
+```
+
+---
+
+## fork
+
+```c
+// forkme.c
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+    pid_t pid = fork();
+    if (pid > 0) {
+        printf("In parent process, child pid: %d\n", pid);
+    } else if (pid == 0) {
+        printf("In child process\n");
+    } else {
+        perror(__FILE__);
+        return -1;
+    }
+    sleep(10);
+/*
+Output of `ps -eaf`
+
+  UID   PID  PPID   C STIME   TTY           TIME CMD
+  501 85638 78129   0 12:27PM ttys001    0:00.00 bin/forkme
+  501 85639 85638   0 12:27PM ttys001    0:00.00 bin/forkme
+ */
+    return 0;
+}
+```
+
+---
+
+## exec
+
+Specifically, we'll use `execve()`.
+
+```c
+ int execve(const char *path, char *const argv[], char *const envp[]);
+```
+
+All other `exec` functions are wrappers over this call.
+
+```c
+int execl(const char *path, const char *arg0, ... /*, (char *)0 */);
+
+int execle(const char *path, const char *arg0, ... /*,
+       (char *)0, char *const envp[]*/);
+
+int execlp(const char *file, const char *arg0, ... /*, (char *)0 */);
+
+int execv(const char *path, char *const argv[]);
+
+int execvp(const char *file, char *const argv[]);
+
+int fexecve(int fd, char *const argv[], char *const envp[]);
+```
+
+---
+
+## exec
+
+```c
+// execprintargs.c
+#include <stdio.h>
+#include <unistd.h>
+
+extern char **environ;
+
+int main() {
+    char *path = "bin/printargs";
+    char *argv[] = {"printargs", "foo", "bar", NULL};
+    if (execve(path, argv, environ) == -1) {
+        perror("execprintargs");
+    }
+    return -1;
+}
+```
+
+Output of `ps -eaf`
+
+```
+# Before execve()
+  UID   PID  PPID   C STIME   TTY           TIME CMD
+  501 86779 73189   0  1:20PM ttys000    0:00.00 execprintargs
+
+# After execve()
+  UID   PID  PPID   C STIME   TTY           TIME CMD
+  501 86779 73189   0  1:20PM ttys000    0:00.01 printargs foo bar
+```
+
+---
+
+## exec
+
+```c
+// execme.c
+#include <stdio.h>
+#include <unistd.h>
+
+extern char **environ;
+
+int search_path(char *name, char *path, size_t maxlen);
+
+int main(int argc, char *argv[]) {
+    char path[MAX_PATH_LEN];
+    if (!search_path(argv[1], path, sizeof(path))) {
+        fprintf(stderr, "Couldn't locate %s\n", argv[1]);
+        return -1;
+    }
+    int pargc = argc - 1;
+    char **pargv = malloc(sizeof(char *) * (pargc + 1));
+    for (int i = 0; i < pargc; ++i) {
+        pargv[i] = argv[i + 1];
+    }
+    pargv[argc] = NULL;
+    if (execve(path, pargv, environ) == -1) {
+        perror(__FILE__);
+    }
+    return -1;
+}
+```
+
+---
+
+## exec
+
+```
+$ execme printargs foo bar
+argv[0] = printargs
+argv[1] = foo
+argv[2] = bar
+```
+
+---
+
+## fork-exec in the shell
+
+```c
+// main routine
+    do {
+        prompt_and_read(line, sizeof(line));
+        should_exit = strcmp(line, "exit") == 0;
+        if (!should_exit) {
+            int argc = parse_line(line, argv, ARRAY_SIZE(argv));
+            char binpath[MAX_PATH_LEN];
+            if (search_path(argv[0], binpath, sizeof(binpath))) {
+*               pid_t pid = fork();
+*               if (pid == 0) {
+*                   if (execve(binpath, argv, environ) == -1) {
+*                       perror("rush");
+*                   }
+                } else {
+                    // do something else
+                }
+            } else {
+                fprintf(stderr, "Couldn't locate %s\n", argv[0]);
+            }
+        }
+    } while (!should_exit);
+```
 
 ---
 
