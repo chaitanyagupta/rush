@@ -261,6 +261,124 @@ int main() {
 
 ---
 
+## Executing the program
 
+```
+$ echo foo bar
+
+argv[0] = "echo"
+argv[1] = "foo"
+argv[2] = "bar"
+argv[4] = NULL
+```
+
+Where is `echo`?
+
+---
+
+## PATH search
+
+* To find `echo`, look for it in all the locations specified by the `PATH` environment variable
+* The "environment" is usually inherited from the parent process and is available to any C program in the global variable `environ`.
+
+---
+
+## The Environment
+
+```c
+// printenv.c
+#include <stdio.h>
+
+extern char **environ;
+
+int main() {
+    char **env;
+    for (env = environ; *env != NULL; ++env) {
+        printf("%s\n", *env);
+    }
+    return 0;
+}
+```
+
+Usage:
+
+```
+$ printenv
+TERM=xterm-256color
+SHELL=/bin/bash
+TMPDIR=/var/folders/h2/yzs4zslx1yn6v78pgrfgxsd40000gn/T/
+PWD=/Users/chaitanya/directi-projects/rush
+OLDPWD=/Users/chaitanya
+USER=chaitanya
+PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
+HOME=/Users/chaitanya
+...
+```
+
+---
+
+## The Environment
+
+Much easier to use these helper functions than accessing `environ` directly.
+
+```c
+char *getenv(const char *name);
+
+int putenv(char *string);
+
+int setenv(const char *name, const char *value, int overwrite);
+
+int unsetenv(const char *name);
+```
+
+---
+
+## search_path
+
+`search_path`: Lookup name in the list of paths provided by the `PATH` environment variable. If found, return non-zero and copy the path into `path`, else return zero.
+
+```c
+int search_path(char *name, char *path, size_t maxlen) {
+    char pathdirs[MAX_PATH_VAR_LEN];
+    strlcpy(pathdirs, getenv("PATH"), sizeof(pathdirs));
+    char *dir, *head = pathdirs;
+    int success = 0;
+    while ((dir = strsep(&head, ":")) != NULL) {
+        strlcpy(path, dir, maxlen);
+        strlcat(path, "/", maxlen);
+        strlcat(path, name, maxlen);
+        if (access(path, X_OK) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+```
+---
+
+## search_path
+
+```c
+// main routine
+do {
+    prompt_and_read(line, sizeof(line));
+    should_exit = strcmp(line, "exit") == 0;
+    if (!should_exit) {
+        int argc = parse_line(line, argv, ARRAY_SIZE(argv));
+        char binpath[MAX_PATH_LEN];
+        if (search_path(argv[0], binpath, sizeof(binpath))) {
+            // do further processing
+        } else {
+            fprintf(stderr, "Couldn't locate %s\n", argv[0]);
+        }
+    }
+ } while (!should_exit);
+```
+
+???
+
+One more thing that a UNIX shell does is that, if the program name contains a slash, then PATH is not searched.
+
+---
 
 # The End

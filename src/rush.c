@@ -1,8 +1,14 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define ARRAY_SIZE(x)  (sizeof(x) / sizeof((x)[0]))
 
 #define MAX_LINE_LENGTH 512
 #define MAX_ARGC 64
+#define MAX_PATH_VAR_LEN 2048
+#define MAX_PATH_LEN 512
 
 // TODO: error handling
 void prompt_and_read(char *line, size_t max_len) {
@@ -22,7 +28,21 @@ int parse_line(char *line, char *argv[], size_t max_argc) {
     return ap - argv;
 }
 
-#define ARRAY_SIZE(x)  (sizeof(x) / sizeof((x)[0]))
+int search_path(char *name, char *path, size_t maxlen) {
+    char pathdirs[MAX_PATH_VAR_LEN];
+    strlcpy(pathdirs, getenv("PATH"), sizeof(pathdirs));
+    char *dir, *head = pathdirs;
+    int success = 0;
+    while ((dir = strsep(&head, ":")) != NULL) {
+        strlcpy(path, dir, maxlen);
+        strlcat(path, "/", maxlen);
+        strlcat(path, name, maxlen);
+        if (access(path, X_OK) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int main() {
     char line[MAX_LINE_LENGTH];
@@ -33,8 +53,11 @@ int main() {
         should_exit = strcmp(line, "exit") == 0;
         if (!should_exit) {
             int argc = parse_line(line, argv, ARRAY_SIZE(argv));
-            for (int i = 0; i < argc; ++i) {
-                printf("argv[%d] = %s\n", i, argv[i]);
+            char binpath[MAX_PATH_LEN];
+            if (search_path(argv[0], binpath, sizeof(binpath))) {
+                // do further processing
+            } else {
+                fprintf(stderr, "Couldn't locate %s\n", argv[0]);
             }
         }
     } while (!should_exit);
