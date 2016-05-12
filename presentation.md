@@ -698,30 +698,6 @@ dup2(out, STDOUT_FILENO);
 
 ---
 
-# Parsing redirect qualifiers
-
-```c
-int get_redirect_files(int argc, char **argv,
-                       char **input, char **output) {
-    for (int i = argc - 1; i >= 0; --i) {
-        char *arg = argv[i];
-        if (arg[0] == '<') {
-            *input = arg + 1;
-            --argc;
-        } else if (arg[0] == '>') {
-            *output = arg + 1;
-            --argc;
-        } else {
-            break;
-        }
-    }
-    argv[argc] = NULL;
-    return argc;
-}
-```
-
----
-
 # Redirecting input/output
 
 ```c
@@ -747,6 +723,29 @@ void redirect_files(char *input, char *output) {
 
 ---
 
+# Parsing redirect qualifiers
+
+```c
+int get_redirect_files(int argc, char **argv,
+                       char **input, char **output) {
+    for (int i = argc - 1; i >= 0; --i) {
+        char *arg = argv[i];
+        if (arg[0] == '<') {
+            *input = arg + 1;
+            --argc;
+        } else if (arg[0] == '>') {
+            *output = arg + 1;
+            --argc;
+        } else {
+            break;
+        }
+    }
+    argv[argc] = NULL;
+    return argc;
+}
+```
+
+---
 
 # Redirecting input/output
 
