@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #define ARRAY_SIZE(x)  (sizeof(x) / sizeof((x)[0]))
 
@@ -44,6 +45,42 @@ int search_path(char *name, char *path, size_t maxlen) {
     return 0;
 }
 
+int get_redirect_files(int argc, char **argv, char **input, char **output) {
+    for (int i = argc - 1; i >= 0; --i) {
+        char *arg = argv[i];
+        if (arg[0] == '<') {
+            *input = arg + 1;
+            --argc;
+        } else if (arg[0] == '>') {
+            *output = arg + 1;
+            --argc;
+        } else {
+            break;
+        }
+    }
+    argv[argc] = NULL;
+    return argc;
+}
+
+void redirect_files(char *input, char *output) {
+    if (input != NULL) {
+        int in = open(input, O_RDONLY);
+        if (in == -1) {
+            perror("rush (open)");
+        } else if (dup2(in, STDIN_FILENO) == -1) {
+            perror("rush (dup2)");
+        }
+    }
+    if (output != NULL) {
+        int out = open(output, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        if (out == -1) {
+            perror("rush (open)");
+        } else if (dup2(out, STDOUT_FILENO) == -1) {
+            perror("rush (dup2)");
+        }
+    }
+}
+
 extern char **environ;
 
 int main() {
@@ -61,6 +98,11 @@ int main() {
                 if (pid > 0) {
                     wait(NULL);
                 } else if (pid == 0) {
+                    char *input, *output;
+                    input = output = NULL;
+                    if (get_redirect_files(argc, argv, &input, &output) < argc) {
+                        redirect_files(input, output);
+                    }
                     if (execve(binpath, argv, environ) == -1) {
                         perror("rush");
                     }
