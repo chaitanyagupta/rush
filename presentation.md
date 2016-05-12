@@ -686,6 +686,97 @@ close(fd);
 
 Any file descriptor can be redirected using the `dup2` call.
 
+```c
+// Redirect standard input
+int in = open("/path/to/file", O_RDONLY);
+dup2(in, STDIN_FILENO);
+
+// Redirect standard output
+int out = open("/path/to/file", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+dup2(out, STDOUT_FILENO);
+```
+
+---
+
+# Parsing redirect qualifiers
+
+```c
+int get_redirect_files(int argc, char **argv,
+                       char **input, char **output) {
+    for (int i = argc - 1; i >= 0; --i) {
+        char *arg = argv[i];
+        if (arg[0] == '<') {
+            *input = arg + 1;
+            --argc;
+        } else if (arg[0] == '>') {
+            *output = arg + 1;
+            --argc;
+        } else {
+            break;
+        }
+    }
+    argv[argc] = NULL;
+    return argc;
+}
+```
+
+---
+
+# Redirecting input/output
+
+```c
+void redirect_files(char *input, char *output) {
+    if (input != NULL) {
+        int in = open(input, O_RDONLY);
+        if (in == -1) {
+            perror("rush (open)");
+        } else if (dup2(in, STDIN_FILENO) == -1) {
+            perror("rush (dup2)");
+        }
+    }
+    if (output != NULL) {
+        int out = open(output, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        if (out == -1) {
+            perror("rush (open)");
+        } else if (dup2(out, STDOUT_FILENO) == -1) {
+            perror("rush (dup2)");
+        }
+    }
+}
+```
+
+---
+
+
+# Redirecting input/output
+
+```c
+  do {
+      prompt_and_read(line, sizeof(line));
+      should_exit = strcmp(line, "exit") == 0;
+      if (!should_exit) {
+          int argc = parse_line(line, argv, ARRAY_SIZE(argv));
+          char binpath[MAX_PATH_LEN];
+          if (search_path(argv[0], binpath, sizeof(binpath))) {
+              pid_t pid = fork();
+              if (pid > 0) {
+                  wait(NULL);
+              } else if (pid == 0) {
+*                 char *input, *output;
+*                 input = output = NULL;
+*                 if (get_redirect_files(argc, argv,
+*                                        &input, &output) < argc) {
+*                     redirect_files(input, output);
+*                 }
+                  if (execve(binpath, argv, environ) == -1) {
+                      perror("rush");
+                  }
+              } else { ... }
+          } else { ... }
+      }
+  } while (!should_exit);
+```
+
 ---
 
 # The End
