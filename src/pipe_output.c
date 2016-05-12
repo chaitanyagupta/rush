@@ -29,10 +29,11 @@ int main(int argc, char *argv[]) {
         printf("In child process\n");
         fflush(stdout);
         if (execve(pargv[0], pargv, environ) == -1) {
-            perror("pipe_output");
+            perror("pipe_output (execve)");
         }
     } else {
-        perror("pipe_output");
+        perror("pipe_output (fork)");
     }
+    free(pargv);
     return -1;
 }
