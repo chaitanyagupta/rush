@@ -62,17 +62,17 @@ int get_redirect_files(int argc, char **argv, char **input, char **output) {
     return argc;
 }
 
-void redirect_files(char *input, char *output) {
-    if (input != NULL) {
-        int in = open(input, O_RDONLY);
+void redirect_std(char *inpath, char *outpath) {
+    if (inpath != NULL) {
+        int in = open(inpath, O_RDONLY);
         if (in == -1) {
             perror("rush (open)");
         } else if (dup2(in, STDIN_FILENO) == -1) {
             perror("rush (dup2)");
         }
     }
-    if (output != NULL) {
-        int out = open(output, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    if (outpath != NULL) {
+        int out = open(outpath, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
         if (out == -1) {
             perror("rush (open)");
         } else if (dup2(out, STDOUT_FILENO) == -1) {
@@ -101,7 +101,7 @@ int main() {
                     char *input, *output;
                     input = output = NULL;
                     if (get_redirect_files(argc, argv, &input, &output) < argc) {
-                        redirect_files(input, output);
+                        redirect_std(input, output);
                     }
                     if (execve(binpath, argv, environ) == -1) {
                         perror("rush");
