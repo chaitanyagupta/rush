@@ -728,6 +728,11 @@ void redirect_std(char *inpath, char *outpath) {
 # Parsing redirect qualifiers
 
 ```c
+// Check argv for redirect arguments (starting with '<' or '>').
+//
+// If present, they should be at the end of argv, and `input` and
+// `output` will point to them after the function exits. `argv` is
+// also truncated to exclude redirect arguments.
 int get_redirect_files(int argc, char **argv,
                        char **input, char **output) {
     for (int i = argc - 1; i >= 0; --i) {

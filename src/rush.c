@@ -45,6 +45,11 @@ int search_path(char *name, char *path, size_t maxlen) {
     return 0;
 }
 
+// Check argv for redirect arguments (starting with '<' or '>').
+//
+// If present, they should be at the end of argv, and `input` and
+// `output` will point to them after the function exits. `argv` is
+// also truncated to exclude redirect arguments.
 int get_redirect_files(int argc, char **argv, char **input, char **output) {
     for (int i = argc - 1; i >= 0; --i) {
         char *arg = argv[i];
