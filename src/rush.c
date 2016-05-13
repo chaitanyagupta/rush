@@ -67,6 +67,8 @@ int get_redirect_files(int argc, char **argv, char **input, char **output) {
     return argc;
 }
 
+// If `inpath` is not NULL, redirect standard input
+// If `outpath` is not NULL, redirect standard output
 void redirect_std(char *inpath, char *outpath) {
     if (inpath != NULL) {
         int in = open(inpath, O_RDONLY);
