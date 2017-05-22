@@ -103,8 +103,11 @@ int main() {
             if (search_path(argv[0], binpath, sizeof(binpath))) {
                 pid_t pid = fork();
                 if (pid > 0) {
+                    setpgid(pid, pid);
                     wait(NULL);
                 } else if (pid == 0) {
+                    pid = getpid();
+                    setpgid(pid, pid);
                     char *input, *output;
                     input = output = NULL;
                     if (get_redirect_files(argc, argv, &input, &output) < argc) {
